@@ -1,12 +1,9 @@
-import base64
 import chardet
-from pathlib import Path
 import pandas as pd
 from io import StringIO
-from models import Submission
-from utils.logger import setup_logger
-from utils.config_manager import ConfigManager
-from utils.normalizer import normalize_headers, handle_missing_data
+from pathlib import Path
+from src.utils.logger import setup_logger
+from src.utils.config_manager import ConfigManager
 
 
 logger = setup_logger()
@@ -103,8 +100,6 @@ class DataLoader:
                     StringIO(file_content), encoding=encoding, dtype=column_types
                 )
                 # Apply normalization and handling missing data
-                df = normalize_headers(df)
-                df = handle_missing_data(df)
                 return df
             except UnicodeDecodeError as e:
                 logger.warning(f"Error with encoding {encoding}: {e}")
@@ -113,61 +108,3 @@ class DataLoader:
                 logger.error(f"Failed to load with encoding {encoding}: {e}")
                 raise
         raise ValueError("Could not load the file with any of the tried encodings.")
-
-    @classmethod
-    def from_json(cls, json_data: dict, submission_class) -> Submission:
-        try:
-            csv_content = base64.b64decode(json_data["file_content"]).decode("utf-8")
-            logger.info(f"Processing file upload from {json_data['store_name']}")
-            df = pd.read_csv(StringIO(csv_content))
-            # Assume normalize_headers and handle_missing_data are predefined functions
-            df = normalize_headers(df)
-            df = handle_missing_data(df)
-            return submission_class(
-                submission_df=df,
-                store_name=json_data["store_name"],
-                seller_email=json_data["email"],
-            )
-        except Exception as e:
-            error_message = f"Failed to process the uploaded file: {e}"
-            logger.error(error_message)
-            # Depending on your error handling strategy, you might want to:
-            # - Rethrow a custom exception
-            # - Return an error object or None
-            # - Handle the exception in another way
-            raise ValueError(error_message) from e
-
-    @staticmethod
-    async def from_csv_stream(file_stream, chunk_size=1024 * 1024):
-        """
-        Asynchronously processes CSV data in chunks from a file stream, handling the header in the first chunk.
-
-        Args:
-            file_stream: An asynchronous file stream.
-            chunk_size: Size of each chunk to read from the stream.
-
-        Yields:
-            DataFrames constructed from chunks of the CSV file, using the header from the first chunk.
-        """
-        buffer = ""
-        header = None
-        async for chunk in file_stream:
-            text = chunk.decode("utf-8")
-            buffer += text
-
-            # Process the buffer while complete lines (ending in '\n') exist
-            while "\n" in buffer:
-                position = buffer.find("\n") + 1
-                line, buffer = buffer[:position], buffer[position:]
-                if header is None:
-                    # The first line is assumed to be the header
-                    header = line.strip().split(",")
-                else:
-                    # Process subsequent lines with the header
-                    df = pd.read_csv(StringIO(line), header=None, names=header)
-                    yield df
-
-        # Handle any remaining data in the buffer
-        if buffer and header is not None:
-            df = pd.read_csv(StringIO(buffer), header=None, names=header)
-            yield df

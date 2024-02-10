@@ -1,15 +1,28 @@
-from datetime import datetime
-from pathlib import Path
 import re
+import json
 import shutil
-from src.models import UploadFile
-from fastapi import FastAPI, File, Form, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from datetime import datetime
+from typing import Dict
+from src.models import Submission
+from utils.logger import setup_logger
+from src.data_loader import DataLoader
 from fastapi.staticfiles import StaticFiles
-from src.utils.logger import setup_logger
-from src.utils.config_manager import ConfigManager
+from utils.config_manager import ConfigManager
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from src.evaluator import Submission, EvalFrame, Evaluator
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    BackgroundTasks,
+    WebSocket,
+)
 
+# Create the FastAPI app
 app = FastAPI()
 
 # Assuming setup_logger() and ConfigManager() are defined elsewhere
@@ -55,16 +68,45 @@ def process_email(email: str) -> str:
     return email_without_domain
 
 
+def process_submission(file_path=None, store_name=None, email=None):
+    try:
+        submission_df = DataLoader(config).read_csv_file(file_path)
+        submission = Submission.new_submission(submission_df, store_name, email)
+        eval_frame = EvalFrame(submission, DataLoader(config))
+        evaluation_df = eval_frame.evaluation_df
+        evaluator = Evaluator(evaluation_df)
+        results = evaluator.evaluate()
+        return results
+    except Exception as e:
+        logger.error(f"Failed to process submission: {e}")
+        return None
+
+
+async def process_submission_background(
+    file_path: Path, store_name: str, email: str, client_id: str
+):
+    results = process_submission(
+        file_path=file_path, store_name=store_name, email=email
+    )
+    if results is None:
+        await send_message_to_client(client_id, "Processing failed")
+    else:
+        await send_message_to_client(client_id, results)
+
+
 @app.post("/submit/")
 async def upload_file(
-    email: str = Form(...), storeName: str = Form(...), file: UploadFile = File(...)
+    background_tasks: BackgroundTasks,
+    email: str = Form(...),
+    storeName: str = Form(...),
+    file: UploadFile = File(...),
 ):
     try:
         sanitized_name = sanitize_for_path(storeName)
         email_sanitized = sanitize_for_path(email)
         date_str = datetime.now().strftime("%Y%m%d%H%M%S")
 
-        uploads_dir = Path(__file__).parent / "uploads" / sanitized_name
+        uploads_dir = Path("uploads") / sanitized_name
         uploads_dir.mkdir(parents=True, exist_ok=True)
 
         filename = f"{email_sanitized}_{date_str}.csv"
@@ -72,13 +114,65 @@ async def upload_file(
 
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
+
+        background_tasks.add_task(
+            process_submission_background, file_path, storeName, email
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
-    return JSONResponse(content={
-        "status": "Success",
-        "value": 100,  # Example value
-        "quantity": 5,  # Example quantity
-        "acv": 200  # Example ACV
-    })
+    return {"message": "File uploaded, file processing initiated"}
+
+
+connections: Dict[str, WebSocket] = {}
+
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await connect_client(client_id, websocket)
+    try:
+        while True:
+            # Wait for any message from the client
+            _ = await websocket.receive_text()
+            # No specific action taken on message receipt for now
+            # The connection remains open for sending messages back to the client
+    except Exception as e:
+        logger.error(f"WebSocket error with {client_id}: {e}")
+    finally:
+        await disconnect_client(client_id)
+
+
+async def connect_client(client_id: str, websocket: WebSocket):
+    await websocket.accept()
+    connections[client_id] = websocket
+    await websocket.send_text(f"Connected to server with client ID: {client_id}")
+
+
+async def disconnect_client(client_id: str):
+    if client_id in connections:
+        await connections[client_id].close()
+        del connections[client_id]
+
+
+async def send_message_to_client(client_id: str, message: str):
+    if client_id in connections:
+        await connections[client_id].send_text(message)
+
+
+async def process_submission_background(
+    file_path: Path, store_name: str, email: str, client_id: str
+):
+    try:
+        results = process_submission(
+            file_path=file_path, store_name=store_name, email=email
+        )
+        if results is None:
+            await send_message_to_client(client_id, "Processing failed")
+        else:
+            # Assuming `results` is already a JSON serializable dict
+            message = json.dumps(results)
+            await send_message_to_client(client_id, message)
+    except Exception as e:
+        logger.error(f"Error processing submission for {client_id}: {e}")
+        await send_message_to_client(client_id, "Error during processing")
