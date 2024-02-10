@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass, field
-from src.data_loader import DataLoader
-from src.utils.config_manager import ConfigManager
-from src.utils.logger import setup_logger
-from src.models import Submission
+from data_loader import DataLoader
+from utils.config_manager import ConfigManager
+from utils.logger import setup_logger
+from models import Submission
 
 logger = setup_logger()
 config = ConfigManager()

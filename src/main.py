@@ -1,12 +1,11 @@
 import os
 import argparse
 from io import StringIO
-from src.data_loader import DataLoader
-from src.file_handler import FileHandler
-from src.utils.logger import setup_logger
-from src.utils.config_manager import ConfigManager
-from src.evaluator import Evaluator, Submission, EvalFrame
-
+from data_loader import DataLoader
+from file_handler import FileHandler
+from utils.logger import setup_logger
+from utils.config_manager import ConfigManager
+from evaluator import Evaluator, Submission, EvalFrame
 
 logger = setup_logger()
 config = ConfigManager()

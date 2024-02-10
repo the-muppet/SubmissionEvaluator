@@ -2,6 +2,7 @@ import uuid
 import pandas as pd
 from datetime import datetime
 from dataclasses import dataclass
+from fastapi import File, UploadFile
 from pydantic import BaseModel, validator, EmailStr
 
 
@@ -28,8 +29,8 @@ class Submission:
 
 
 # Pydantic Models
-class UploadFile(BaseModel):
-    file: str
+class FileSubmission(BaseModel):
+    file: UploadFile
     email: EmailStr
     storeName: str
     date_time: datetime | None

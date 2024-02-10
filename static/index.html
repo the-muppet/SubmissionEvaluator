@@ -36,11 +36,10 @@
             <li><strong>File Submission Portal</strong></li>
         </ul>
         <ul>
-            <li><a href="#">Home</a></li>
-            <li><a href="#">About</a></li>
-            <li><a href="#" onclick="switchView()">SYP View</a></li>
-            <li><a href="#">Contact Us</a></li>
-            <li><button id="modeToggle">Dark Mode</button></li>
+            <li><a href="#" onclick="homeView()">Home</a></li>
+            <li><a href="#" onclick="aboutView()">About</a></li>
+            <li><a href="#" onclick="sypView()">SYP View</a></li>
+            <li><a href="#" onclick="pingKoda()">Contact Us</a></li>
         </ul>
     </nav>
     <main class="container">
@@ -57,7 +56,7 @@
                     <input type="text" id="storeName" placeholder="Enter your store name" required>
                     <label for="fileInput">Select file (CSV only):</label>
                     <input type="file" id="fileInput" accept=".csv" required>
-                    <button type="button" id="uploadButton">Upload</button>
+                    <button type="button" id="uploadButton">Upload Form</button></span>
                 </div>
                 <div id="messageSuccess" style="color: green; display: none;">Upload successful!</div>
                 <div id="messageError" style="color: red; display: none;">Upload failed.</div>
@@ -75,61 +74,78 @@
         <small><a href="#">Privacy Policy</a> • <a href="#">Terms of Service</a></small>
     </footer>
     <script>
-        function switchView() {
+        function homeView() {
+            window.location.href = '/';
+        }
+
+        function sypView() {
             window.location.href = '/syp/';
         }
 
-        async function uploadFile() {
-            document.getElementById('messageSuccess').style.display = 'none';
-            document.getElementById('messageError').style.display = 'none';
+        function aboutView() {
+            window.location.href = '/about/';
+        }
 
+        function pingKoda() {
+            window.location.href = '/contact/';
+        }
+
+        async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
             const email = document.getElementById('email').value;
             const storeName = document.getElementById('storeName').value;
+            const file = fileInput.files[0];
 
             if (!file) {
                 alert('Please select a file.');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const base64Content = event.target.result;
-                const payload = {
-                    file: base64Content,
-                    email: email,
-                    storeName: storeName,
-                    date_time: new Date().toISOString()
-                };
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('email', email);
+            formData.append('storeName', storeName);
 
-                try {
-                    const response = await fetch('/submit/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(payload),
-                    });
+            try {
+                const response = await fetch('/submit/', {
+                    method: 'POST',
+                    body: formData, // Send as FormData
+                });
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    console.log('File uploaded successfully:', result);
-                    document.getElementById('messageSuccess').style.display = 'block';
-                    document.getElementById('messageSuccess').textContent = 'Upload successful!';
-                } catch (error) {
-                    console.error('Error during file upload:', error);
-                    document.getElementById('messageError').style.display = 'block';
-                    document.getElementById('messageError').textContent = 'Upload failed. Please try again.';
+                // Assuming the response includes fields like status, value, quantity, and ACV
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            };
-            reader.readAsDataURL(file);
+
+                const result = await response.json();
+                // Display success message
+                document.getElementById('messageSuccess').style.display = 'block';
+                document.getElementById('messageSuccess').textContent = 'Upload successful!';
+                document.getElementById('messageError').style.display = 'none'; // Hide error message
+
+                // Update dynamic fields with results
+                document.getElementById('resultStatus').textContent = `Submission Status: ${result.status || 'Success'}`;
+                document.getElementById('resultValue').textContent = `Total Value: ${result.value || 'N/A'}`;
+                document.getElementById('resultQuantity').textContent = `Total Quantity: ${result.quantity || 'N/A'}`;
+                document.getElementById('resultAcv').textContent = `ACV: ${result.acv || 'N/A'}`;
+
+            } catch (error) {
+                console.error('Error during file upload:', error);
+                // Display error message
+                document.getElementById('messageError').style.display = 'block';
+                document.getElementById('messageError').textContent = 'Upload failed. Please try again.';
+                document.getElementById('messageSuccess').style.display = 'none'; // Hide success message
+
+                // Reset dynamic fields
+                document.getElementById('resultStatus').textContent = `Submission Status: Failed`;
+                document.getElementById('resultValue').textContent = `Total Value: N/A`;
+                document.getElementById('resultQuantity').textContent = `Total Quantity: N/A`;
+                document.getElementById('resultAcv').textContent = `ACV: N/A`;
+            }
         }
 
         document.getElementById('uploadButton').addEventListener('click', uploadFile);
+
     </script>
 </body>
 

@@ -3,10 +3,10 @@ import chardet
 from pathlib import Path
 import pandas as pd
 from io import StringIO
-from src.models import Submission
-from src.utils.logger import setup_logger
-from src.utils.config_manager import ConfigManager
-from src.utils.normalizer import normalize_headers, handle_missing_data
+from models import Submission
+from utils.logger import setup_logger
+from utils.config_manager import ConfigManager
+from utils.normalizer import normalize_headers, handle_missing_data
 
 
 logger = setup_logger()
