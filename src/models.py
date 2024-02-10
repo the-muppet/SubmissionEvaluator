@@ -2,6 +2,8 @@ import uuid
 import pandas as pd
 from datetime import datetime
 from dataclasses import dataclass
+from pydantic import BaseModel, validator, EmailStr
+
 
 # Submission class
 @dataclass(frozen=True)
@@ -13,7 +15,9 @@ class Submission:
     creation_time: str
 
     @classmethod
-    def new_submission(cls, dataframe, store_name, seller_email):
+    def new_submission(
+        cls, dataframe: pd.DataFrame, store_name: str, seller_email: EmailStr
+    ):
         return cls(
             dataframe=dataframe,
             uuid=uuid.uuid4().__str__(),
@@ -21,3 +25,11 @@ class Submission:
             seller_email=seller_email,
             creation_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
+
+
+# Pydantic Models
+class UploadFile(BaseModel):
+    file: str
+    email: EmailStr
+    storeName: str
+    date_time: datetime | None

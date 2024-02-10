@@ -1,13 +1,12 @@
 from datetime import datetime
-from typing import Optional
 from pathlib import Path
 import base64
 import re
-from fastapi import FastAPI, HTTPException
+import shutil
+from src.models import UploadFile
+from fastapi import FastAPI, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-
 from src.utils.logger import setup_logger
 from src.utils.config_manager import ConfigManager
 
@@ -23,21 +22,14 @@ static_files_path = BASE_DIR / "static"
 app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 
-class UploadSchema(BaseModel):
-    file: str
-    email: str
-    storeName: str
-    date_time: Optional[datetime] = None
-
-
 @app.get("/")
 async def get_form():
     return FileResponse("static/index.html")
 
-
 @app.get("/syp")
 async def get_syp():
     return FileResponse("static/syp.html")
+
 
 
 def sanitize_for_path(name: str) -> str:
@@ -56,7 +48,7 @@ def process_email(email: str) -> str:
 
 
 @app.post("/submit/")
-async def upload_file(upload_data: UploadSchema):
+async def upload_file(upload_data: UploadFile):
     try:
         # Process and sanitize storeName and email
         storeName_sanitized = sanitize_for_path(upload_data.storeName)
@@ -78,6 +70,29 @@ async def upload_file(upload_data: UploadSchema):
 
         with file_path.open("wb") as buffer:
             buffer.write(file_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+
+    return {
+        "detail": f"File uploaded successfully to {storeName_sanitized} folder with filename: {filename}"
+    }
+
+@app.post("/submitForm/")
+async def upload_file(storeName: str = Form(...), email: str = Form(...), file: UploadFile = File(...)):
+    try:
+        storeName_sanitized = sanitize_for_path(storeName)  # Assume implementation exists
+        email_sanitized = sanitize_for_path(email)  # Assume implementation exists
+        date_str = datetime.now().strftime("%Y%m%d%H%M%S")
+
+        uploads_dir = Path(__file__).parent / "uploads" / storeName_sanitized
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"{email_sanitized}_{date_str}.csv"
+        file_path = uploads_dir / filename
+
+        # Save uploaded file to disk
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 

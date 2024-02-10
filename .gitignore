@@ -1,0 +1,12 @@
+.venv/
+venv/
+*.csv
+*.json
+*.yml
+Dockerfile
+test*.py
+__init__.py
+__pycache__
+*log
+*.ini
+requirements.txt
