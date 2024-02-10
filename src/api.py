@@ -35,6 +35,11 @@ async def get_form():
     return FileResponse("static/index.html")
 
 
+@app.get("/syp")
+async def get_syp():
+    return FileResponse("static/syp.html")
+
+
 def sanitize_for_path(name: str) -> str:
     """
     Sanitizes the name for use in path by replacing invalid characters underscores.
