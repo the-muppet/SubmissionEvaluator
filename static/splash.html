@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <title>File Submission Portal</title>
+    <style>
+        button:hover,
+        input[type="submit"]:hover {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
+
+        #uploadButton {
+            width: fit-content;
+            padding: 0.5em 1em;
+        }
+
+        nav ul li a[role="button"] {
+            background: none;
+            color: inherit;
+            border: none;
+            padding: 0;
+            font: inherit;
+            cursor: pointer;
+            outline: inherit;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li><strong>File Submission Portal</strong></li>
+        </ul>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#" onclick="switchView()">Switch to SYP View</a></li>
+            <li><a href="#">Contact Us</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        <div class="grid">
+            <section>
+                <hgroup>
+                    <h2>Welcome to Our Submission Portal</h2>
+                    <h3>Efficiently upload your files with ease</h3>
+                </hgroup>
+                <form id="uploadForm" class="grid" style="gap: 20px; display: flex; flex-direction: column;">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" aria-label="Email"
+                        required>
+                    <label for="storeName">Store Name:</label>
+                    <input type="text" id="storeName" name="storeName" placeholder="Enter your store name"
+                        aria-label="Store Name" required>
+                    <label for="fileInput">Select file (CSV only):</label>
+                    <input type="file" id="fileInput" name="file" accept=".csv" required>
+                    <button type="button" id="uploadButton" onclick="uploadFile()" disabled>Upload</button>
+                </form>
+                <div id="messageSuccess" style="color: green; display: none;">Upload successful!</div>
+                <div id="messageError" style="color: red; display: none;">Upload failed.</div>
+                <div id="uploadResults" style="margin-top: 20px;">
+                    <h3>Submission Results</h3>
+                    <p id="resultStatus">Submission Status: Pending</p>
+                    <p id="resultValue">Total Value: N/A</p>
+                    <p id="resultQuantity">Total Quantity: N/A</p>
+                </div>
+            </section>
+        </div>
+    </main>
+    <footer class="container">
+        <small><a href="#">Privacy Policy</a> • <a href="#">Terms of Service</a></small>
+    </footer>
+    <script>
+        const uploadButton = document.getElementById('uploadButton');
+        const inputs = document.querySelectorAll('#email, #storeName, #fileInput');
+
+        function checkInputs() {
+            const isFormFilled = Array.from(inputs).every(input => input.value.length > 0);
+            uploadButton.disabled = !isFormFilled;
+        }
+
+        inputs.forEach(input => input.addEventListener('change', checkInputs));
+
+        function switchView() {
+            window.location.href = '/syp/';
+        }
+
+        async function uploadFile() {
+            // Upload file script
+        }
+
+        document.getElementById('uploadButton').addEventListener('click', uploadFile);
+    </script>
+</body>
+
+</html>
