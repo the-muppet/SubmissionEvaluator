@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=.6">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
@@ -14,13 +14,20 @@
         }
     </style>
 </head>
+<nav class="container-fluid">
+    <ul>
+        <li><strong>File Submission Portal</strong></li>
+    </ul>
+    <ul>
+        <li><a href="#" onclick="homeView()">Home</a></li>
+        <li><a href="#" onclick="aboutView()">About</a></li>
+        <li><a href="#" onclick="sypView()">SYP View</a></li>
+        <li><a href="#" onclick="pingKoda()">Contact Us</a></li>
+    </ul>
+</nav>
 
 <body class="bg-white">
     <div class="container mx-auto p-6">
-        <div class="flex justify-center mb-6">
-            <img src="https://placehold.co/200x50" alt="Direct by TCGPlayer logo placeholder" class="mb-4">
-        </div>
-
         <div class="text-center mb-4">
             <h1 class="font-bold text-2xl mb-2">Store Your Products Approval Form</h1>
             <p class="text-sm">For TCGplayer Store Your Products Accountholders</p>
@@ -28,83 +35,80 @@
 
         <div class="mb-6">
             <p class="text-sm"><strong>PLEASE NOTE:</strong> SYP approval criteria HAS BEEN UPDATED*<br>
-                If you have additional questions please reach out to <a href="mailto:success@tcgplayer.com"
-                    class="text-blue-600">success@tcgplayer.com</a>.</p>
+                If you have additional questions please reach out to <a href="mailto:syp@tcgplayer.com"
+                    class="text-blue-600">syp@tcgplayer.com</a>.</p>
             <p class="text-xs mt-2">Rejected or unscheduled shipments are subject to refusal by our Authentication
                 Center.</p>
         </div>
         <div class="flex justify-center mb-6">
-            <img src="static/img/syp-table.png" alt="TCGplayer SYP criteria table" class="mb-4">
-        </div>
-        <div class="mb-4">
-            <div class="grid grid-cols-3 gap-4 text-sm mb-2">
-                <div class="text-center font-bold">Match %</div>
-                <div class="text-center font-bold">Under $2.00</div>
-                <div class="text-center font-bold">$2.00 - $3.00</div>
-                <div class="text-center font-bold">Over $3.00</div>
-                <!-- Repeat for each row of criteria -->
-                <div class="text-center">0% - 50%</div>
-                <div class="text-center">Refused</div>
-                <div class="text-center">Refused</div>
-                <div class="text-center">Accepted</div>
-                <!-- ... -->
+            <div class="mb-4">
+                <div class="grid grid-cols-3 gap-4 text-sm mb-2">
+                    <!-- ... -->
+                </div>
+                <h3> SUBMIT WITH CONFIDENCE!!</h3>
+                <p> Our New Submission Evaluator quickly, intelligently...<strong>Auto<i>magically</i></strong>
+                    <br> handles common data entry mistakes such as mismatched IDs or wayward typos!
+                    <br>Ensuring ease of use, ease of mind, and results in seconds!
+                    <br>Faster approval times -> faster turnarounds -> more money in YOUR pocket.
+                </p>
+                </p>
             </div>
-            <p class="text-xs">*Determine shipment match Rate and Average Card Value using the SYP Pull Sheet!</p>
-        </div>
+            <div class="mb-4">
+                <h2 class="font-bold text-lg mb-2">Shipment Requirements</h2>
+                <ul class="list-disc list-inside text-sm">
+                    <li>50% Average Card Value (ACV)</li>
+                    <li>$2.00 match to our SYP Pull Sheet</li>
+                    <li>500 cards per shipment minimum</li>
+                </ul>
+            </div>
 
-        <div class="mb-4">
-            <h2 class="font-bold text-lg mb-2">Shipment Requirements</h2>
-            <ul class="list-disc list-inside text-sm">
-                <li>50% Average Card Value (ACV)</li>
-                <li>$2.00 match to our SYP Pull Sheet</li>
-                <li>500 cards per shipment minimum</li>
-            </ul>
-        </div>
+            <div class="mb-4">
+                <p class="text-sm font-bold">*PLEASE SUBMIT MTG & PKM CSV's IN SEPARATE FORMS*</p>
+            </div>
 
-        <div class="mb-4">
-            <p class="text-sm font-bold">*PLEASE SUBMIT MTG & PKM CSV's IN SEPARATE FORMS*</p>
-        </div>
-
-        <div class="mb-4">
-            <!-- Form starts here -->
-            <form>
-                <div class="mb-3">
-                    <label for="storeName" class="block text-sm font-bold mb-2">Store Your Products (SYP) store name as
-                        it appears on TCGplayer *</label>
-                    <input type="text" id="storeName" class="border p-2 w-full">
-                </div>
-                <div class="mb-3">
-                    <label for="email" class="block text-sm font-bold mb-2">Email associated with your SYP account
-                        *</label>
-                    <input type="email" id="email" class="border p-2 w-full">
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                        <label for="firstName" class="block text-sm font-bold mb-2">First name *</label>
-                        <input type="text" id="firstName" class="border p-2 w-full">
+            <div class="mb-4">
+                <!-- Form starts here -->
+                <form>
+                    <div class="mb-3">
+                        <label for="storeName" class="block text-sm font-bold mb-2">Store Your Products (SYP) store name
+                            as it appears on TCGplayer*</label>
+                        <input type="text" id="storeName" class="border p-2 w-full">
                     </div>
-                    <div>
-                        <label for="lastName" class="block text-sm font-bold mb-2">Last name *</label>
-                        <input type="text" id="lastName" class="border p-2 w-full">
+                    <div class="mb-3">
+                        <label for="email" class="block text-sm font-bold mb-2">Email associated with your SYP account
+                            *</label>
+                        <input type="email" id="email" class="border p-2 w-full">
                     </div>
-                </div>
-                <div class="mb-6">
-                    <label for="fileUpload" class="block text-sm font-bold mb-2">Magic: the Gathering Cards - csv upload
-                        of your sorted and ready to ship MTG products *</label>
-                    <input type="file" id="fileUpload" class="border p-2 w-full">
-                    <p class="text-xs mt-1">*Please note file uploads MUST be CSV format*</p>
-                </div>
-                <div class="mb-6">
-                    <label for="fileUploadPk" class="block text-sm font-bold mb-2">Pokémon Cards - csv upload of your
-                        sorted and ready to ship Pokémon products *</label>
-                    <input type="file" id="fileUploadPk" class="border p-2 w-full">
-                </div>
-                <div class="text-center">
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
-                </div>
-            </form>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label for="firstName" class="block text-sm font-bold mb-2">First name *</label>
+                            <input type="text" id="firstName" class="border p-2 w-full">
+                        </div>
+                        <div>
+                            <label for="lastName" class="block text-sm font-bold mb-2">Last name *</label>
+                            <input type="text" id="lastName" class="border p-2 w-full">
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label for="fileUpload" class="block text-sm font-bold mb-2">Magic: the Gathering Cards - csv
+                            upload
+                            of your sorted and ready to ship MTG products *</label>
+                        <input type="file" id="fileUpload" class="border p-2 w-full">
+                        <p class="text-xs mt-1">*Please note file uploads MUST be CSV format*</p>
+                    </div>
+                    <div class="mb-6">
+                        <label for="fileUploadPk" class="block text-sm font-bold mb-2">Pokémon Cards - csv upload of
+                            your
+                            sorted and ready to ship Pokémon products *</label>
+                        <input type="file" id="fileUploadPk" class="border p-2 w-full">
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
 </body>
+<script type="text/javascript" src="./static/js/navbar.js"></script>
 
 </html>

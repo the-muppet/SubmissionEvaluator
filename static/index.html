@@ -56,16 +56,22 @@
                     <input type="text" id="storeName" placeholder="Enter your store name" required>
                     <label for="fileInput">Select file (CSV only):</label>
                     <input type="file" id="fileInput" accept=".csv" required>
+                    <!-- FILEPATH: /Z:/stuff/SubmissionEvaluator/static/index.html -->
+                    <!-- BEGIN: ed8c6549bwf9 -->
+                    <input type="hidden" id="client_id" value=testid42069baby>
+                    <!-- END: ed8c6549bwf9 -->
                     <button type="button" id="uploadButton">Upload Form</button></span>
                 </div>
                 <div id="messageSuccess" style="color: green; display: none;">Upload successful!</div>
                 <div id="messageError" style="color: red; display: none;">Upload failed.</div>
                 <div id="uploadResults" style="margin-top: 20px;">
                     <h3>Submission Results</h3>
-                    <p id="resultStatus">Submission Status: Pending</p>
-                    <p id="resultValue">Total Value: N/A</p>
-                    <p id="resultQuantity">Total Quantity: N/A</p>
-                    <p id="resultAcv">ACV: N/A</p>
+                    <strong>
+                        <p id="resultsStat" style="color: greenyellow">Approved!!</p>
+                        <p id="resultStatus">Match Rate: 38.74%</p>
+                        <p id="resultValue">Total Quantity: 6451</p>
+                        <p id="resultQuantity">Total Value: $24621.19</p>
+                        <p id="resultAcv">Average Card Value: $3.82</p>
                 </div>
             </section>
         </div>
@@ -74,22 +80,6 @@
         <small><a href="#">Privacy Policy</a> • <a href="#">Terms of Service</a></small>
     </footer>
     <script>
-        function homeView() {
-            window.location.href = '/';
-        }
-
-        function sypView() {
-            window.location.href = '/syp/';
-        }
-
-        function aboutView() {
-            window.location.href = '/about/';
-        }
-
-        function pingKoda() {
-            window.location.href = '/contact/';
-        }
-
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
             const email = document.getElementById('email').value;
@@ -105,6 +95,8 @@
             formData.append('file', file);
             formData.append('email', email);
             formData.append('storeName', storeName);
+            const clientId = document.getElementById('client_id').value;
+            formData.append('client_id', clientId);
 
             try {
                 const response = await fetch('/submit/', {
@@ -112,7 +104,6 @@
                     body: formData, // Send as FormData
                 });
 
-                // Assuming the response includes fields like status, value, quantity, and ACV
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -143,10 +134,9 @@
                 document.getElementById('resultAcv').textContent = `ACV: N/A`;
             }
         }
-
         document.getElementById('uploadButton').addEventListener('click', uploadFile);
-
     </script>
+    <script type="text/javascript" src="/static/js/navbar.js"></script>
 </body>
 
 </html>
