@@ -3,7 +3,10 @@ from src.utils.config_manager import ConfigManager
 from src.utils.masks import is_valid_tcgplayer_id, is_positive_integer
 from dataclasses import dataclass, field, InitVar
 from typing import Any, Callable, Dict
+import json
 import pandas as pd
+import numpy as np
+
 
 @dataclass
 class SubmissionEvaluator:
@@ -17,7 +20,7 @@ class SubmissionEvaluator:
             "Add to Quantity": lambda x: is_positive_integer(x),
         }
     )
-    acv_threshold: float = 0.0  # Initialize with a default value or 0.0
+    acv_threshold: float = 0.0
     _match_rate: float = 0.0
     _total_value: float = 0.0
     _total_quantity: int = 0
@@ -40,12 +43,14 @@ class SubmissionEvaluator:
             catalog_df, pullsheet_df, pullorder_df
         )
 
-
-    def init_or_update(self):
-        self.dataframe = self._clean_data(self.dataframe, self.clean_rules)
-        self._calculate_metrics()
-
     def _calculate_metrics(self):
+        """
+        Calculates various metrics based on the current state of the evaluator.
+
+        This method calculates the total value, total quantity, match rate, ACV,
+        and updates the status of the evaluator.
+
+        """
         self._total_value = self._calculate_total_value()
         self._total_quantity = self._calculate_total_quantity()
         self._match_rate = self._calculate_match_rate()
@@ -113,7 +118,7 @@ class SubmissionEvaluator:
         self._status = (
             False
             if self._total_quantity < self.data_loader.get("Threshold", "QTY")
-            else self.acv >= self.threshold
+            else self.acv >= self.acv_threshold
         )
 
     # Getter/setters for automatic variable recalculation
@@ -153,7 +158,7 @@ class SubmissionEvaluator:
     def status(self):
         return self._status
 
-    def __dict__(self):
+    def to_dict(self):
         return {
             "acv": self.acv,
             "match_rate": self.match_rate,
@@ -164,11 +169,8 @@ class SubmissionEvaluator:
             "total_adjusted_quantity": self.total_adjusted_quantity,
         }
 
-    def __str__(self):
-        return json.dumps(self.__dict__(), indent=4)
-
-    def __repr__(self):
-        return self
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
     def merge_source_frames(self, catalog_df, pullsheet_df, pullorder_df):
         """
@@ -216,7 +218,7 @@ class SubmissionEvaluator:
         }
         # Apply the new formatted column names to the DataFrame
         dataframe.rename(columns=new_columns, inplace=True)
-        
+
         return dataframe
 
     @staticmethod
