@@ -9,7 +9,7 @@ def setup_logger():
     Sets up the application logger based on configurations specified in the settings.ini file.
     """
     config = ConfigManager()
-    log_level = config.get("Logging", "LEVEL", fallback="debug")
+    log_level = config.get("Logging", "LEVEL", fallback="DEBUG")
     log_format = config.get(
         "Logging",
         "FORMAT",

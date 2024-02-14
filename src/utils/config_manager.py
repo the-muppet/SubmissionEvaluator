@@ -13,6 +13,7 @@ class ConfigManager:
         # Note: Using .resolve() to ensure we get an absolute path, resolving any symlinks
         self.config_file_path = (self.script_dir / config_file_path).resolve()
 
+        # Create a configparser object
         self.config = configparser.ConfigParser()
         self.load_config()
 

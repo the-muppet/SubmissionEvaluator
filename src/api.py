@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from src.utils.config_manager import ConfigManager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from evaluator import SubmissionEvaluator
+from src.evaluator import SubmissionEvaluator
 from fastapi import (
     FastAPI,
     File,

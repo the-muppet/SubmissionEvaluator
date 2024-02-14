@@ -1,5 +1,9 @@
-from typing import Dict
+"""
+Data loader module.
+"""
+
 import pandas as pd
+from typing import Dict
 from pathlib import Path
 from src.utils.logger import setup_logger
 from src.utils.config_manager import ConfigManager
@@ -14,7 +18,7 @@ class DataLoader:
         self.config = config_manager
         self.sources = self.load_sources_config()
 
-    def load_sources_config(self):
+    def load_sources_config(self) -> Dict[str, str]:
         """
         Loads data sources configuration from settings.ini.
         """
@@ -37,27 +41,27 @@ class DataLoader:
         Returns:
             pd.DataFrame: DataFrame containing the loaded data.
         """
-        # Ensure the file path is valid
-        if not Path(file_path).is_file():
+        if not Path(file_path).is_file():  # Ensure the file path is valid
             logger.error(f"File not found: {file_path}")
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        try:
+        try:  # Read the CSV file and return the DataFrame
             return pd.read_csv(file_path, encoding="utf-8", dtype=COLUMN_TYPES)
         except Exception as e:
             logger.error(f"Failed to read {file_path} due to: {e}")
             raise
- 
-    def load_data(self) -> Dict[str, pd.DataFrame]:
+
+    def load_required_data(self) -> Dict[str, pd.DataFrame]:
         """
-        Loads all data sources specified in the configuration into DataFrames.
+        Loads required data from CSV files.
+
+        Args:
+            None
         Returns:
-            dict: A dictionary of DataFrames keyed by their respective source names.
+            dict[str, df]: containing the loaded dataframes
         """
-        data_frames = {}
-        for name, path in self.sources.items():
-            try:
-                logger.info(f"Loading data for source: {name} from {path}")
-                data_frames[name] = self.read_csv_file(path)
-            except FileNotFoundError as e:
-                logger.error(f"Error loading data from {path}: {e}")
+        return {
+            "catalog_df": self.read_csv_file(self.sources["catalog"]),
+            "pullsheet_df": self.read_csv_file(self.sources["pullsheet"]),
+            "pullorder_df": self.read_csv_file(self.sources["pullorder"]),
+        }
