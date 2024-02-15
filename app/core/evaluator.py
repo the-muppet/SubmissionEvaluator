@@ -1,10 +1,10 @@
 import json
 import pandas as pd
 import numpy as np
-from src.utils.logger import setup_logger
-from src.data_loader import DataLoader
-from src.utils.config_manager import ConfigManager
-from src.utils.masks import is_valid_tcgplayer_id, is_positive_integer
+from utils.logger import setup_logger
+from data_loader import DataLoader
+from utils.config_manager import ConfigManager
+from utils.masks import is_valid_tcgplayer_id, is_positive_integer
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict
 
@@ -13,9 +13,9 @@ logger = setup_logger()
 
 @dataclass
 class Evaluator:
-    config_manager: ConfigManager
+    config_manager: ConfigManager = field(init=True)
     data_loader: DataLoader = field(init=False)
-    eval_frame: pd.DataFrame = pd.DataFrame()
+    eval_frame: pd.DataFrame = field(default_factory=pd.DataFrame)
     source_timestamps: Dict = field(default_factory=dict)
     clean_rules: Dict[str, Callable[[Any], bool]] = field(
         default_factory=lambda: {

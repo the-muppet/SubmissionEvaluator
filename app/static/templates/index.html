@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Elmo{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="grid">
+        <section>
+            <hgroup>
+                <h2>Submission Portal</h2>
+                <h3>Efficiently upload your files with ease</h3>
+            </hgroup>
+            <div class="grid" style="gap: 20px; display: flex; flex-direction: column;">
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
+                <label for="storeName">Store Name:</label>
+                <input type="text" id="storeName" placeholder="Enter your store name" required>
+                <label for="fileInput">Select file (CSV only):</label>
+                <input type="file" id="fileInput" accept=".csv" required>
+                <input type="hidden" id="client_id" value=testid42069baby>
+                <button type="button" id="uploadButton">Upload Form</button></span>
+            </div>
+            <div id="messageSuccess" style="color: green; display: none;">Upload successful!</div>
+            <div id="messageError" style="color: red; display: none;">Upload failed.</div>
+            <div id="uploadResults" style="margin-top: 20px;">
+                <h3 style="display: none;">Submission Results</h3>
+            </div>
+        </section>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="/static/js/upload.js"></script>
+{% endblock %}
+
+
+</html>

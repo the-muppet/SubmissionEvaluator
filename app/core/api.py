@@ -4,55 +4,85 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from typing import Dict
-from src.models import Submission
-from src.utils.logger import setup_logger
-from src.data_loader import DataLoader
+from models.submission_class import Submission
+from utils.logger import setup_logger
+from data_loader import DataLoader
 from fastapi.staticfiles import StaticFiles
-from src.utils.config_manager import ConfigManager
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from src.evaluator import SubmissionEvaluator
+from utils.config_manager import ConfigManager
+from fastapi.middleware.cors import CORSMiddleware
+from core.evaluator import Evaluator
 from fastapi import (
     FastAPI,
-    File,
+    Request,
+    WebSocket,
     Form,
+    File,
     HTTPException,
     UploadFile,
     BackgroundTasks,
-    WebSocket,
 )
+
 
 # Create the FastAPI app
 app = FastAPI()
 
-# Assuming setup_logger() and ConfigManager() are defined elsewhere
+# import logging and config
 logger = setup_logger()
 config = ConfigManager()
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-static_files_path = BASE_DIR / "static"
-
+# Enable CORS for all origins"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Specify the correct origins in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Path resolution
+BASE_DIR = Path(__file__).resolve().parent.parent
+static_files_path = BASE_DIR / "static"
+upload_files_path = BASE_DIR / "uploads"
+template_files_path = BASE_DIR / "templates"
+
+
+def show_filepaths(BASE_DIR, upload_files_path, static_files_path, template_files_path):
+    return {
+        "BASE_DIR": BASE_DIR,
+        "upload_files_path": upload_files_path,
+        "static_files_path": static_files_path,
+        "template_files_path": template_files_path,
+    }
+
+
+# Mount static files, template and upload directories
 app.mount("/static", StaticFiles(directory=static_files_path), name="static")
+app.mount("/uploads", StaticFiles(directory=upload_files_path), name="uploads")
+app.mount("/templates", StaticFiles(directory=template_files_path), name="templates")
+
+
+# Routes
+
+
+@app.get("/info")
+async def info():
+    return show_filepaths()
 
 
 @app.get("/")
-async def get_form():
-    logger.info("serving main page")
-    return FileResponse("static/index.html")
+async def read_root(request: Request):
+    return FileResponse("templates/syp.html")
 
 
 @app.get("/syp")
-async def get_syp():
-    logger.info("Serving syp page")
-    return FileResponse("static/syp.html")
+async def get_syp(request: Request):
+    try:
+        logger.info(f"{request}")
+        return FileResponse("syp.html", {"request": request})
+    except Exception as e:
+        logger.error("Error loading syp page")
+        raise HTTPException(status_code=500, detail=f"Error loading syp page: {e}")
 
 
 def sanitize_for_path(name: str) -> str:
@@ -78,7 +108,7 @@ def process_submission(file_path=None, store_name=None, email=None):
         logger.info(f"Processing submission for store {store_name} and email {email}")
         submission_df = DataLoader(config).read_csv_file(file_path)
         submission = Submission.new_submission(submission_df, store_name, email)
-        eval_frame = EvalFrame(submission, DataLoader(config))
+        eval_frame = Evaluator(submission, DataLoader(config))
         evaluation_df = eval_frame.evaluation_df
         evaluator = Evaluator(evaluation_df)
         results = evaluator.evaluate()

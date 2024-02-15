@@ -1,9 +1,9 @@
 import asyncio
 import uvicorn
-from src.file_handler import FileHandler
-from src.utils.logger import setup_logger
-from src.utils.config_manager import ConfigManager
-from src.api import process_submission
+from app.file_handler import FileHandler
+from app.utils.logger import setup_logger
+from app.utils.config_manager import ConfigManager
+from app.api import process_submission
 
 config = ConfigManager()
 logger = setup_logger()

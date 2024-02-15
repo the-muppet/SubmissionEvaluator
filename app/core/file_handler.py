@@ -1,5 +1,5 @@
 from pathlib import Path
-from src.utils.logger import setup_logger
+from app.utils.logger import setup_logger
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
