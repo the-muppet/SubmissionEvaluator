@@ -1,47 +1,52 @@
-from src.data_loader import DataLoader
-from src.utils.config_manager import ConfigManager
-from src.utils.masks import is_valid_tcgplayer_id, is_positive_integer
-from dataclasses import dataclass, field, InitVar
-from typing import Any, Callable, Dict
 import json
 import pandas as pd
 import numpy as np
+from src.utils.logger import setup_logger
+from src.data_loader import DataLoader
+from src.utils.config_manager import ConfigManager
+from src.utils.masks import is_valid_tcgplayer_id, is_positive_integer
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict
+
+logger = setup_logger()
 
 
 @dataclass
-class SubmissionEvaluator:
-    eval_frame: pd.DataFrame = field(default_factory=pd.DataFrame)
+class Evaluator:
+    config_manager: ConfigManager
+    data_loader: DataLoader = field(init=False)
+    eval_frame: pd.DataFrame = pd.DataFrame()
     source_timestamps: Dict = field(default_factory=dict)
-    config_manager: InitVar[ConfigManager]
-    data_loader: InitVar[Any]  # Marked as InitVar because it's used in __post_init__
     clean_rules: Dict[str, Callable[[Any], bool]] = field(
         default_factory=lambda: {
-            "TCGplayer Id": lambda x: is_valid_tcgplayer_id(x),
-            "Add to Quantity": lambda x: is_positive_integer(x),
+            "TCGplayer Id": is_valid_tcgplayer_id,
+            "Add to Quantity": is_positive_integer,
         }
     )
-    acv_threshold: float = 0.0
+    _acv_threshold: float = 0.0
     _match_rate: float = 0.0
     _total_value: float = 0.0
     _total_quantity: int = 0
     _total_adjusted_qty: int = 0
     _acv: float = 0.0
-    _status: bool = False
+    _status: str = None
 
-    def __post_init__(self, config_manager: ConfigManager):
-        self.data_loader = DataLoader(config_manager)
-        self.acv_threshold = self.data_loader.get("Metrics", "THRESHOLD")
-        self.load_and_prep_frames()
+    def __post_init__(self):
+        logger.info("Initializing Evaluator")
+        try:
+            self.data_loader = DataLoader(self.config_manager)
+            self._acv_threshold = self.data_loader.get("Threshold", "HIGHER")
+            self.load_and_prep_frames()
+        except Exception as e:
+            logger.error(f"Could not initialize evaluator: {e}")
 
     def load_and_prep_frames(self):
-        data_frames = self.data_loader.load_required_data()
-        catalog_df = data_frames["catalog_df"]
-        pullsheet_df = data_frames["pullsheet_df"]
-        pullorder_df = data_frames["pullorder_df"]
-
-        self.eval_frame = self.merge_source_frames(
-            catalog_df, pullsheet_df, pullorder_df
-        )
+        try:
+            logger.info("Loading and preparing frames")
+            data_frames = self.data_loader.load_required_data()
+            self.eval_frame = self._merge_source_frames(data_frames)
+        except Exception as e:
+            logger.error(f"Could not load and prepare frames: {e}")
 
     def _calculate_metrics(self):
         """
@@ -51,74 +56,133 @@ class SubmissionEvaluator:
         and updates the status of the evaluator.
 
         """
-        self._total_value = self._calculate_total_value()
-        self._total_quantity = self._calculate_total_quantity()
-        self._match_rate = self._calculate_match_rate()
-        self._acv = self._recalculate_acv()
-        self._update_status()
+        logger.info("Calculating metrics")
+        try:
+            self._total_value = self._calculate_total_value()
+            self._total_quantity = self._calculate_total_quantity()
+            self._match_rate = self._calculate_match_rate()
+            self._acv = self._recalculate_acv()
+            self._update_status()
+        except Exception as e:
+            logger.error(f"Could not calculate metrics: {e}")
 
     def _calculate_total_value(self) -> float:
-        """Calculates overall total submission value.
-        Multiplies add_to_quantity and market value using vectorized methods for efficiency
+        """
+        Calculates overall total submission value.
+
         Returns:
             float: Submission value
         """
-        return (
-            self.dataframe["add_to_quantity"] * self.dataframe["tcg_market_price"]
-        ).sum()
+        try:
+            if (
+                "add_to_quantity" in self.eval_frame.columns
+                and "tcg_market_price" in self.eval_frame.columns
+            ):
+                total_value = (
+                    self.eval_frame["add_to_quantity"]
+                    * self.eval_frame["tcg_market_price"]
+                ).sum()
+                logger.info("Total value calculated")
+                return float(total_value)
+            else:
+                logger.warning("Columns needed to calulate total value missing.")
+                return 0.0
+        except Exception as e:
+            logger.error(f"Error calculating total value: {e}")
+            return 0.0
 
     def _calculate_total_quantity(self) -> int:
-        """Sums total submission quantity.
+        """
+        Calculates total submission quantity.
+
         Returns:
             int: Submission quantity
         """
-        return self.dataframe["add_to_quantity"].sum()
+        try:
+            if "add_to_quantity" in self.eval_frame.columns:
+                total_quantity = self.eval_frame["add_to_quantity"].sum()
+                logger.info("Total quantity calculated")
+                return int(total_quantity)
+        except Exception as e:
+            logger.error(f"Error calculating total quantity: {e}")
+            return 0
 
     def _calculate_total_adjusted_quantity(self) -> int:
-        """Calculates the adjusted quantity (which takes into account the max_qty constraint per SKU in the pullsheet)
-        Returns:
-            int: Total Adjusted quantity
         """
-        if "add_to_quantity" in self.dataframe.columns:
-            self.dataframe["max_qty"].fillna(0, inplace=True)
-            self.dataframe["adjusted_quantity"] = np.minimum(
-                self.dataframe["add_to_quantity"], self.dataframe["max_qty"]
-            )
-            return self.dataframe["adjusted_quantity"].sum()
-        return 0
+        Calculates the total adjusted quantity considering the max_qty constraint per SKU.\n
+        Assumes eval_frame is preprocessed to handle missing max_qty values.
+
+        Returns:
+            int: Total adjusted quantity.
+        """
+        try:
+            if (
+                "add_to_quantity" in self.eval_frame.columns
+                and "max_qty" in self.eval_frame.columns
+            ):
+                adjusted_quantities = np.minimum(
+                    self.eval_frame["add_to_quantity"], self.eval_frame["max_qty"]
+                ).sum()
+                logger.info("Total adjusted quantity calculated")
+                return int(adjusted_quantities)
+        except Exception as e:
+            logger.error(f"Error calculating total adjusted quantity: {e}")
+            return 0
 
     def _calculate_match_rate(self) -> float:
-        """Calculates the match rate of the submission.
+        """
+        Calculates the match rate of the submission.
+
         Returns:
-            float: Match rate
+            float: Match rate, or 0.0 if it cannot be calculated.
         """
         total_adjusted_quantity = self._calculate_total_adjusted_quantity()
         total_submission_quantity = self._calculate_total_quantity()
-        return (
-            (total_adjusted_quantity / total_submission_quantity) * 100
-            if total_submission_quantity > 0
-            else 0
-        )
 
-    def _calculate_acv(self):
-        """Calculates the average card value of the submission. and updates status
+        # Avoid division by zero
+        if total_submission_quantity == 0:
+            logger.warning(
+                "Could not calculate match rate because total submission quantity is 0."
+            )
+            return 0.0
+
+        # Calculate match rate
+        match_rate = (total_adjusted_quantity / total_submission_quantity) * 100
+        logger.info("Match rate calculated")
+        return float(match_rate)
+
+    def _calculate_acv(self) -> float:
+        """
+        Calculates the average card value (ACV) of the submission, and updates status
+
         Returns:
             float: Average card value (ACV)
         """
-        self._acv = (
-            self._total_value / self._total_quantity if self._total_quantity > 0 else 0
-        )
+        try:
+            if self.total_quantity == 0:
+                logger.warning("Could not calculate ACV because total quantity is 0.")
+                return 0.0
+            else:
+                acv = self.total_value / self.total_quantity
+                logger.info("ACV successfully calculated.")
+                return float(acv)
+        except Exception as e:
+            logger.error(f"Error calculating ACV: {e}")
+            return 0.0
 
-    def _update_status(self):
+    def update_status(self):
         """
-        Updates the status of the submission based on the criteria.
-        Returns:
-            None: (but also pseudo-boolean via 'Accepted/Rejected' indicator)
+        Updates the status of the submission to 'Accepted' if\n
+        - ACV is above the calculated acv_threshold,\n
+        - the total submission quantity is above quantity threshold\n
+        otherwise 'Rejected'.
         """
+        quantity_threshold = self.data_loader.get("Threshold", "QTY")
         self._status = (
-            False
-            if self._total_quantity < self.data_loader.get("Threshold", "QTY")
-            else self.acv >= self.acv_threshold
+            "Accepted"
+            if self._total_quantity >= quantity_threshold
+            and self._acv >= self._acv_threshold
+            else "Rejected"
         )
 
     # Getter/setters for automatic variable recalculation
@@ -129,7 +193,7 @@ class SubmissionEvaluator:
     @match_rate.setter
     def match_rate(self, value):
         self._match_rate = value
-        self.acv_threshold = (
+        self._acv_threshold = (
             self.data_loader.get("Threshold", "LOWER")
             if self._match_rate >= 51
             else self.data_loader.get("Threshold", "UPPER")
@@ -160,117 +224,112 @@ class SubmissionEvaluator:
 
     def to_dict(self):
         return {
-            "acv": self.acv,
+            "acv": self._acv,
             "match_rate": self.match_rate,
             "status": self.status,
-            "threshold": self.threshold,
+            "threshold": self._acv_threshold,
             "total_value": self.total_value,
             "total_quantity": self.total_quantity,
-            "total_adjusted_quantity": self.total_adjusted_quantity,
+            "total_adjusted_quantity": self._total_adjusted_qty,
         }
 
     def to_json(self):
         return json.dumps(self.to_dict())
 
-    def merge_source_frames(self, catalog_df, pullsheet_df, pullorder_df):
+    def _merge_source_frames(
+        self, data_frames: Dict[str, pd.DataFrame]
+    ) -> pd.DataFrame:
         """
-        - Drop "add_to_quantity" from catalog_df to avoid _x _y post-merge.
-        - Join "max_qty" to catalog_df from pullsheet_df using "tcgplayer_id"
-        - Join "shelf_order" to catalog_df from pullorder_df using "set_name"
+        Specialized merging of dataframes to create needed eval_frame.
+
+        Args:
+            data_frames(Dict[str, pd.DataFrame]): dict containing needed source frames
+        Returns:
+            pd.DataFrame: merged dataframe
         """
-        # Drop
-        catalog_df = catalog_df.drop["add_to_quantity"]
-        # Join 1
-        catalog_df = pd.merge(
-            catalog_df,
-            pullsheet_df[["tcgplayer_id", "max_qty"]],
-            on="tcgplayer_id",
-            how="left",
+        catalog_df, pullsheet_df, pullorder_df = data_frames.values()
+        # Drop add_to_quantity from catalog_df to avoid _x _y post-merge.
+        catalog_df = catalog_df.drop(columns=["add_to_quantity"], errors="ignore")
+        # Join max_qty into catalog_df on tcgplayer_id
+        catalog_df = catalog_df.merge(
+            pullsheet_df[["tcgplayer_id", "max_qty"]], on="tcgplayer_id", how="left"
         )
-        # Join 2
-        catalog_df = pd.merge(
-            catalog_df,
-            pullorder_df[["set_name", "sheet_order"]],
-            on="set_name",
-            how="left",
+        # Join sheet_order into catalog_df on set_name
+        catalog_df = catalog_df.merge(
+            pullorder_df[["set_name", "sheet_order"]], on="set_name", how="left"
         )
         return catalog_df
 
     @staticmethod
     def _format_headers(
-        dataframe: pd.DataFrame, format_rules: Dict[str, Callable[[str], str]]
+        df: pd.DataFrame, format_rules: Dict[str, Callable[[str], str]]
     ) -> pd.DataFrame:
         """
         Formats the headers of a DataFrame based on specified rules.
 
         Args:
-            dataframe (pd.DataFrame): The DataFrame whose headers need formatting.
-            format_rules (Dict[str, Callable[[str], str]]): A dictionary where keys represent the original
-                header names, and values are functions that take and return a string, applying the desired
-                formatting to the header name.
+            dataframe: The DataFrame whose headers need formatting.
+            format_rules: A dictionary with original header names as keys and formatting functions as values.
 
         Returns:
-            pd.DataFrame: A DataFrame with formatted headers.
+            A DataFrame with formatted headers.
         """
         # Format each header according to the provided rules
-        new_columns = {
-            col: format_rules.get(col, lambda x: x)(col) for col in dataframe.columns
-        }
-        # Apply the new formatted column names to the DataFrame
-        dataframe.rename(columns=new_columns, inplace=True)
-
-        return dataframe
+        df = df.rename(columns=lambda col: format_rules.get(col, lambda x: x)(col))
+        return df
 
     @staticmethod
-    def _apply_header_formats(dataframe: pd.DataFrame) -> pd.DataFrame:
+    def _apply_header_formats(df: pd.DataFrame) -> pd.DataFrame:
         """
-        Applies generic formatting rules to all headers in the DataFrame.
+        Applies generic formatting rules to all dataframe headers:\n
+        - strip
+        - lower
+        - replace ' ' with '_'
 
         Args:
-            dataframe (pd.DataFrame): The DataFrame whose headers need formatting.
+            df: The DataFrame to format
 
         Returns:
-            pd.DataFrame: The DataFrame with formatted headers.
+            formatted DataFrame
         """
-        # Define a generic formatting function, e.g., strip, lower, replace spaces with underscores
-        format_func = lambda header: header.strip().lower().replace(" ", "_")
-        formatted_headers = {col: format_func(col) for col in dataframe.columns}
-
-        # Apply the formatted headers to the DataFrame
-        dataframe.rename(columns=formatted_headers, inplace=True)
-        return dataframe
+        df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
+        return df
 
     @staticmethod
     def _clean_data(
-        dataframe: pd.DataFrame,
+        df: pd.DataFrame,
         clean_rules: Dict[str, Callable[[Any], bool]],
-        invalid_file_path: str = "invalid_rows.csv",
+        invalid_file_path: str = None,
     ) -> pd.DataFrame:
-        """Cleans a DataFrame based on specified rules for each column and accumulates invalid rows in DataFrame."""
-        invalid_rows = pd.DataFrame()
+        """
+        Cleans a DataFrame based on specified rules for each column, saves invalid rows to CSV file
 
+        Args:
+            df: DataFrame to be cleaned.
+            clean_rules: Dict with column names as keys and cleaning functions for values.
+            returns True for valid data, False for invalid.
+            invalid_file_path: where to save invalid rows.
+
+        Returns:
+            cleaned DataFrame
+        """
+        invalid_rows = []
         for column, clean_func in clean_rules.items():
-            if column in dataframe.columns:
-                # Identify valid and invalid rows
-                valid_mask = dataframe[column].apply(clean_func)
-                invalid = dataframe[~valid_mask].copy()
+            if column in df.columns:
+                # Identify valid rows
+                valid_mask = df[column].apply(clean_func)
+                # Accumulate invalid rows with invalidity reason
+                invalid_rows.extend(
+                    df.loc[~valid_mask]
+                    .assign(invalid_reason=f"invalid {column}")
+                    .to_dict("records")
+                )
+                # Keep only valid rows in the dataframe
+                df = df[valid_mask]
 
-                # Add a column to indicate the reason for invalidity
-                invalid["invalid_reason"] = f"Invalid {column}"
+        # Save invalid rows to CSV file
+        if invalid_rows and invalid_file_path:
+            pd.DataFrame(invalid_rows).to_csv(invalid_file_path, index=False)
+            logger.info(f"Invalid rows saved to {invalid_file_path}")
 
-                # Accumulate invalid rows
-                invalid_rows = pd.concat([invalid_rows, invalid], ignore_index=True)
-                # Keep only valid rows
-                dataframe = dataframe[valid_mask]
-
-        # Deduplicate the invalid_rows based on index
-        invalid_rows.drop_duplicates(
-            subset=dataframe.index.name, keep="first", inplace=True
-        )
-
-        # Write non-valid rows to a CSV file if they exist
-        if not invalid_rows.empty:
-            invalid_rows.to_csv(invalid_file_path, index=False)
-            print(f"Non-valid rows written to {invalid_file_path}")
-
-        return dataframe
+        return df
