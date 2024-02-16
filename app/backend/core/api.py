@@ -50,14 +50,9 @@ app.add_middleware(
 # Path resolution
 BASE_DIR = Path(__file__).resolve().parent.parent
 upload_files_path = BASE_DIR / "uploads"
-static_files_path = BASE_DIR / "static"
 
 # Ensure the uploads directory exists
 upload_files_path.mkdir(parents=True, exist_ok=True)
-
-# Mount directories
-app.mount("/static", StaticFiles(directory=static_files_path), name="static")
-app.mount("/uploads", StaticFiles(directory=upload_files_path), name="uploads")
 
 
 @app.post("/get-client-id/", response_model=ClientIdResponse)
@@ -160,11 +155,6 @@ async def upload_file(
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": str(e)})
-
-
-
-
-
 
 
 ### WEBSOCKETS ###
