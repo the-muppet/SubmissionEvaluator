@@ -1,17 +1,20 @@
 import uuid
 import pandas as pd
 from datetime import datetime
-from fastapi import UploadFile
 from dataclasses import dataclass
 from pydantic import BaseModel, EmailStr
 
 
 # Pydantic Models
-class FileSubmission(BaseModel):
-    file: UploadFile
-    email: EmailStr
-    storeName: str
-    date_time: datetime | None
+class SubmissionResponse(BaseModel):
+    uuid: str
+    store_name: str
+    seller_email: EmailStr
+    creation_time: str
+
+
+class ClientIdResponse(BaseModel):
+    client_id: str
 
 
 # Submission class
