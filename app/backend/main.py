@@ -14,6 +14,7 @@ file_handler = FileHandler(upload_directory, process_submission)
 shutdown_event = asyncio.Event()
 
 
+# Start the file monitor
 def start_file_monitor():
     file_handler.start()
 

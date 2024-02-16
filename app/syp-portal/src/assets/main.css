@@ -1,35 +1,61 @@
 @import './base.css';
 
+html,
+body {
+  height: 100%;
+  /* Ensure the body takes up full viewport height */
+  margin: 0;
+  /* Remove default margin */
+  display: flex;
+  justify-content: center;
+  /* Center horizontally */
+  align-items: center;
+  /* Center vertically */
+}
+
 #app {
-  max-width: 1280px;
+  width: 100%;
+  /* Maximize width */
+  max-width: 100%;
+  /* Ensure it does not exceed the viewport width */
+  height: auto;
+  /* Adjust height automatically */
+  min-height: 100%;
+  /* Ensure it covers at least the full viewport height */
   margin: 0 auto;
+  /* Centering if max-width is less than 100% */
   padding: 2rem;
+  box-sizing: border-box;
+  /* Include padding in the element's total width and height */
   font-weight: normal;
+  display: flex;
+  /* Added to make inner content flexible */
+  flex-direction: column;
+  /* Stack children vertically */
 }
 
 a,
 .green {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
+  color: rgb(37, 199, 231);
   transition: 0.4s;
   padding: 3px;
 }
 
 @media (hover: hover) {
   a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+    background-color: hsla(160, 86%, 97%, 0.2);
   }
 }
 
 @media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
   #app {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+    grid-template-columns: repeat(1, 1fr);
+    /* Updated for clarity, though 1 column is default */
+    grid-template-rows: auto;
+    /* Adjust rows size automatically */
+    padding: 0 1rem;
+    /* Adjusted padding to be consistent */
   }
 }

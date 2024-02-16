@@ -1,7 +1,3 @@
-"""
-Data loader module.
-"""
-
 import pandas as pd
 from typing import Dict
 from pathlib import Path

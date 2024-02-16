@@ -4,7 +4,7 @@ import aiofiles
 from pathlib import Path
 from datetime import datetime
 from typing import Dict
-from app.utils.handshake import (
+from utils.handshake import (
     generate_salt,
     hash_email_with_salt,
     read_salts_from_file,
@@ -162,6 +162,12 @@ async def upload_file(
         return JSONResponse(status_code=500, content={"message": str(e)})
 
 
+
+
+
+
+
+### WEBSOCKETS ###
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
@@ -192,21 +198,3 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             await websocket.receive_text()
     except Exception as e:
         manager.disconnect(client_id)
-
-
-async def process_submission_background(
-    file_path: Path, store_name: str, email: str, client_id: str
-):
-    logger.info(f"Initiating background processing for client_id: {client_id}")
-    try:
-        results = process_submission(
-            file_path=file_path, store_name=store_name, email=email
-        )
-        if results is None:
-            await manager.send_personal_message(client_id, "Processing failed")
-        else:
-            message = json.dumps(results)
-            await manager.send_personal_message(client_id, message)
-    except Exception as e:
-        logger.error(f"Error processing submission for {client_id}: {e}")
-        await send_message_to_client(client_id, "Error during processing")
