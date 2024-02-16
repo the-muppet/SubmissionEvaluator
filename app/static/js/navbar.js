@@ -4,9 +4,9 @@ function homeView() {
 }
 
 function sypView() {
-    window.location.href = '/syp/';
+    window.location.href = '/syp';
 }
 
-function pingKoda() {
-    window.location.href = '/contact/';
+function infoView() {
+    window.location.href = '/info';
 }
