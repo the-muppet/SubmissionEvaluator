@@ -1,73 +1,53 @@
-const inputs = document.querySelectorAll('#email, #storeName, #fileInput');
+let convertedCsvData = null;
 
-function checkInputs() {
-    const isFormFilled = Array.from(inputs).every(input => input.value.length > 0);
-    uploadButton.disabled = !isFormFilled;
+document.getElementById('fileUpload').addEventListener('change', handleFile, false);
+
+function handleFile(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            convertedCsvData = XLSX.utils.sheet_to_csv(worksheet);
+            document.getElementById('submitBtn').disabled = false;
+        };
+        reader.readAsArrayBuffer(file);
+    }
 }
 
-inputs.forEach(
-    input => input.addEventListener('change', checkInputs)
-);
-
-async function uploadFile() {
-    const fileInput = document.getElementById('fileInput');
+document.getElementById('uploadForm').addEventListener('submit', async function (event) {
+    event.preventDefault();
     const email = document.getElementById('email').value;
     const storeName = document.getElementById('storeName').value;
-    const file = fileInput.files[0];
+    const clientId = document.getElementById('client_id').value;
 
-    if (!file) {
-        alert('Please select a file.');
+    if (!convertedCsvData) {
+        alert('Please select a file and wait for it to be processed.');
         return;
     }
-    if (!email) {
-        alert('Please enter your email.');
-        return;
-    }
-    if (!storeName) {
-        alert('Please enter your store name.');
-        return;
-    }
-    // Create FormData object
+
     const formData = new FormData();
-    formData.append('file', file);
+    const csvBlob = new Blob([convertedCsvData], { type: 'text/csv' });
+    formData.append('file', csvBlob, `${storeName}_${Date.now()}.csv`);
     formData.append('email', email);
     formData.append('storeName', storeName);
-    const clientId = document.getElementById('client_id').value;
     formData.append('client_id', clientId);
 
     try {
         const response = await fetch('/submit/', {
             method: 'POST',
-            body: formData, // Send as FormData
+            body: formData,
         });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
         const result = await response.json();
-        // Display success message
-        document.getElementById('messageSuccess').style.display = 'block';
-        document.getElementById('messageSuccess').textContent = 'Upload successful!';
-        document.getElementById('messageError').style.display = 'none'; // Hide error message
 
-        // Update dynamic fields with results
-        document.getElementById('resultStatus').textContent = `Submission Status: ${result.status || 'Success'}`;
-        document.getElementById('resultValue').textContent = `Total Value: ${result.value || 'N/A'}`;
-        document.getElementById('resultQuantity').textContent = `Total Quantity: ${result.quantity || 'N/A'}`;
-        document.getElementById('resultAcv').textContent = `ACV: ${result.acv || 'N/A'}`;
-
+        document.getElementById('message').textContent = response.ok ? 'Upload successful!' : `Upload failed: ${result.message}`;
+        document.getElementById('message').style.color = response.ok ? 'green' : 'red';
     } catch (error) {
-        console.error('Error during file upload:', error);
-        // Display error message
-        document.getElementById('messageError').style.display = 'block';
-        document.getElementById('messageError').textContent = 'Upload failed. Please try again.';
-        document.getElementById('messageSuccess').style.display = 'none'; // Hide success message
-
-        // Reset dynamic fields
-        document.getElementById('resultStatus').textContent = `Submission Status: Failed`;
-        document.getElementById('resultValue').textContent = `Total Value: N/A`;
-        document.getElementById('resultQuantity').textContent = `Total Quantity: N/A`;
-        document.getElementById('resultAcv').textContent = `ACV: N/A`;
+        console.error('Upload failed:', error);
+        document.getElementById('message').textContent = 'Upload failed. Please try again.';
+        document.getElementById('message').style.color = 'red';
     }
-}
+});
