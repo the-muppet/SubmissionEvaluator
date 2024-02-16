@@ -1,9 +1,9 @@
 import asyncio
 import uvicorn
-from app.file_handler import FileHandler
-from app.utils.logger import setup_logger
-from app.utils.config_manager import ConfigManager
-from app.api import process_submission
+from core.file_handler import FileHandler
+from utils.logger import setup_logger
+from utils.config_manager import ConfigManager
+from core.api import process_submission
 
 config = ConfigManager()
 logger = setup_logger()
@@ -27,7 +27,7 @@ async def run_file_monitor():
 
 async def serve_api():
     config = uvicorn.Config(
-        "src.api:app", host="127.0.0.1", port=8000, log_level="info"
+        "core.api:app", host="127.0.0.1", port=8000, log_level="debug", reload=True
     )
     server = uvicorn.Server(config)
     await server.serve()

@@ -1,26 +1,32 @@
 import re
 import json
-import shutil
+import aiofiles
 from pathlib import Path
 from datetime import datetime
 from typing import Dict
-from models.submission_class import Submission
+from app.utils.handshake import (
+    generate_salt,
+    hash_email_with_salt,
+    read_salts_from_file,
+    write_salt_to_file,
+)
+from models.my_validators import EmailInput
+from models.submission_class import ClientIdResponse, Submission
 from utils.logger import setup_logger
-from data_loader import DataLoader
+from .data_loader import DataLoader
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from utils.config_manager import ConfigManager
 from fastapi.middleware.cors import CORSMiddleware
 from core.evaluator import Evaluator
+from fastapi.templating import Jinja2Templates
 from fastapi import (
     FastAPI,
     Request,
     WebSocket,
     Form,
     File,
-    HTTPException,
     UploadFile,
-    BackgroundTasks,
 )
 
 
@@ -30,6 +36,7 @@ app = FastAPI()
 # import logging and config
 logger = setup_logger()
 config = ConfigManager()
+templates = Jinja2Templates(directory="static/templates")
 
 # Enable CORS for all origins"
 app.add_middleware(
@@ -42,47 +49,38 @@ app.add_middleware(
 
 # Path resolution
 BASE_DIR = Path(__file__).resolve().parent.parent
-static_files_path = BASE_DIR / "static"
 upload_files_path = BASE_DIR / "uploads"
-template_files_path = BASE_DIR / "templates"
+static_files_path = BASE_DIR / "static"
 
+# Ensure the uploads directory exists
+upload_files_path.mkdir(parents=True, exist_ok=True)
 
-def show_filepaths(BASE_DIR, upload_files_path, static_files_path, template_files_path):
-    return {
-        "BASE_DIR": BASE_DIR,
-        "upload_files_path": upload_files_path,
-        "static_files_path": static_files_path,
-        "template_files_path": template_files_path,
-    }
-
-
-# Mount static files, template and upload directories
+# Mount directories
 app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 app.mount("/uploads", StaticFiles(directory=upload_files_path), name="uploads")
-app.mount("/templates", StaticFiles(directory=template_files_path), name="templates")
 
 
-# Routes
+@app.post("/get-client-id/", response_model=ClientIdResponse)
+async def get_client_id(email_input: EmailInput):
+    email = email_input.email
+    salts = read_salts_from_file()
+    # Check if the client/email is already salty, shake it on em if not
+    if email in salts:
+        salt = bytes.fromhex(salts[email])
+    else:
+        salt = generate_salt()
+        write_salt_to_file(email, salt)
 
+    # Generate the client_id using the email and salt
+    client_id = hash_email_with_salt(email, salt)
 
-@app.get("/info")
-async def info():
-    return show_filepaths()
+    # Return the generated client_id using ClientIdResponse model
+    return ClientIdResponse(client_id=client_id)
 
 
 @app.get("/")
-async def read_root(request: Request):
-    return FileResponse("templates/syp.html")
-
-
-@app.get("/syp")
 async def get_syp(request: Request):
-    try:
-        logger.info(f"{request}")
-        return FileResponse("syp.html", {"request": request})
-    except Exception as e:
-        logger.error("Error loading syp page")
-        raise HTTPException(status_code=500, detail=f"Error loading syp page: {e}")
+    return templates.TemplateResponse("syp.html", {"request": request})
 
 
 def sanitize_for_path(name: str) -> str:
@@ -119,6 +117,13 @@ def process_submission(file_path=None, store_name=None, email=None):
         return None
 
 
+async def send_message_to_client(client_id: str, message: str):
+    """
+    Sends a message to the client with the given client_id.
+    """
+    await manager.send_message(message, manager.get_websocket(client_id))
+
+
 async def process_submission_background(
     file_path: Path, store_name: str, email: str, client_id: str
 ):
@@ -138,94 +143,70 @@ async def process_submission_background(
 
 @app.post("/submit/")
 async def upload_file(
-    background_tasks: BackgroundTasks,
-    email: str = Form(...),
-    storeName: str = Form(...),
-    file: UploadFile = File(...),
-    client_id: str = Form(...),
+    email: str = Form(...), storeName: str = Form(...), file: UploadFile = File(...)
 ):
     try:
-        logger.info(f"Received file upload request from {email} for store {storeName}.")
-        sanitized_name = sanitize_for_path(storeName)
-        email_sanitized = sanitize_for_path(email)
-        date_str = datetime.now().strftime("%Y%m%d%H%M%S")
+        # Construct filename with sanitized store name and current timestamp
+        sanitized_name = re.sub(r"[\/\\:*?\"<>|]", "_", storeName)
+        filename = f"{sanitized_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
 
-        uploads_dir = Path("uploads") / sanitized_name
-        uploads_dir.mkdir(parents=True, exist_ok=True)
+        file_location = f"uploads/{filename}"
+        async with aiofiles.open(file_location, "wb") as out_file:
+            content = await file.read()  # Read file content
+            await out_file.write(content)  # Save file
 
-        filename = f"{email_sanitized}_{date_str}.csv"
-        file_path = uploads_dir / filename
-
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        logger.info(
-            f"File {filename} uploaded successfully. Initiating background processing."
-        )
-
-        background_tasks.add_task(
-            process_submission_background, file_path, storeName, email, client_id
-        )
+        # Here, you can trigger background processing or additional logic as needed
+        return {"message": "File uploaded successfully", "filename": filename}
 
     except Exception as e:
-        logger.error(f"Error processing file upload: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
-
-    return {"message": "File uploaded, file processing initiated"}
+        return JSONResponse(status_code=500, content={"message": str(e)})
 
 
-connections: Dict[str, WebSocket] = {}
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+
+    async def connect(self, client_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+
+    def disconnect(self, client_id: str):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+
+    async def send_personal_message(self, client_id: str, message: str):
+        websocket = self.active_connections.get(client_id)
+        if websocket:
+            await websocket.send_text(message)
+
+
+manager = ConnectionManager()
 
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await connect_client(client_id, websocket)
+    await manager.connect(client_id, websocket)
     try:
         while True:
-            # Wait for any message from the client
-            _ = await websocket.receive_text()
-            # No specific action taken on message receipt for now
-            # The connection remains open for sending messages back to the client
+            # Waiting for any message from the client
+            await websocket.receive_text()
     except Exception as e:
-        logger.error(f"WebSocket error with {client_id}: {e}")
-    finally:
-        await disconnect_client(client_id)
-
-
-async def connect_client(client_id: str, websocket: WebSocket):
-    await websocket.accept()
-    connections[client_id] = websocket
-    logger.info(f"WebSocket connection established with client_id: {client_id}")
-    await websocket.send_text(f"Connected to server with client ID: {client_id}")
-
-
-async def disconnect_client(client_id: str):
-    if client_id in connections:
-        await connections[client_id].close()
-        del connections[client_id]
-        logger.info(f"WebSocket connection closed for client_id: {client_id}")
-
-
-async def send_message_to_client(client_id: str, message: str):
-    if client_id in connections:
-        await connections[client_id].send_text(message)
-        logger.debug(f"Sent message to client_id: {client_id}")
+        manager.disconnect(client_id)
 
 
 async def process_submission_background(
     file_path: Path, store_name: str, email: str, client_id: str
 ):
+    logger.info(f"Initiating background processing for client_id: {client_id}")
     try:
-        logger.debug("Background submission statement entered")
         results = process_submission(
             file_path=file_path, store_name=store_name, email=email
         )
         if results is None:
-            await send_message_to_client(client_id, "Processing failed")
+            await manager.send_personal_message(client_id, "Processing failed")
         else:
-            # Assuming `results` is already a JSON serializable dict
             message = json.dumps(results)
-            await send_message_to_client(client_id, message)
+            await manager.send_personal_message(client_id, message)
     except Exception as e:
         logger.error(f"Error processing submission for {client_id}: {e}")
         await send_message_to_client(client_id, "Error during processing")
