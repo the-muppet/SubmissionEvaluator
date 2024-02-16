@@ -5,8 +5,8 @@ Data loader module.
 import pandas as pd
 from typing import Dict
 from pathlib import Path
-from app.utils.logger import setup_logger
-from app.utils.config_manager import ConfigManager
+from utils.logger import setup_logger
+from utils.config_manager import ConfigManager
 
 logger = setup_logger()
 config_manager = ConfigManager()

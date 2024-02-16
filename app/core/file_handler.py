@@ -1,5 +1,5 @@
 from pathlib import Path
-from app.utils.logger import setup_logger
+from utils.logger import setup_logger
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -19,7 +19,6 @@ class FileHandler(FileSystemEventHandler):
 
     def start(self):
         logger.info(f"Starting to monitor directory: {self.directory}")
-
         self.observer.schedule(self, self.directory, recursive=False)
         self.observer.start()
 
