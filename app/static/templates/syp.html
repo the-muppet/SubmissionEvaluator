@@ -7,16 +7,18 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <title>SYP Submission</title>
     <style>
         button:hover,
         input[type="submit"]:hover {
-            transform: scale(1.05);
+            transform: scale(1.02);
             transition: transform 0.3s ease;
         }
 
+
         #uploadButton {
-            width: fit-content;
+            width: 100%;
             padding: 0.5em 1em;
         }
 
@@ -85,7 +87,7 @@
         <li><a href="#" onclick="homeView()">Home</a></li>
         <li><a href="#" onclick="aboutView()">About</a></li>
         <li><a href="#" onclick="sypView()">SYP View</a></li>
-        <li><a href="#" onclick="pingKoda()">Contact Us</a></li>
+        <li><a href="#" onclick="infoView()">Contact Us</a></li>
     </ul>
 </nav>
 
@@ -108,10 +110,9 @@
                 </div>
                 <h4> SUBMIT WITH CONFIDENCE!!</h4>
                 <p>Our enhanced Submission Evaluator efficiently and seamlessly corrects typical data entry errors like
-                    mismatched IDs and typos.
-                    <br>This improvement ensures a more user-friendly experience and peace of mind, delivering swift
-                    results.
-                    <br>Benefit from quicker approval processes, reduced turnaround times, and the potential for
+                    mismatched IDs and typos. This improvement ensures a more user-friendly experience and peace of
+                    mind, delivering swift
+                    results. Benefit from quicker approval processes, reduced turnaround times, and the potential for
                     increased earnings.
                 </p>
             </div>
@@ -162,8 +163,7 @@
                         <input type="text" id="storeName" class="border p-2 w-full">
                     </div>
                     <div class="mb-3">
-                        <label for="email" class="block text-sm font-bold mb-2">Email associated with your SYP account
-                            *</label>
+                        <label for="email" class="block text-sm font-bold mb-2">Email associated with your SYP account*</label>
                         <input type="email" id="email" class="border p-2 w-full">
                     </div>
                     <div class="grid grid-cols-2 gap-4 mb-3">
@@ -177,22 +177,25 @@
                         </div>
                     </div>
                     <div class="mb-6">
-                        <label for="fileUpload" class="block text-sm font-bold mb-2">Magic: the Gathering Cards - csv
-                            upload
-                            of your sorted and ready to ship MTG products *</label>
-                        <input type="file" id="fileUpload" class="border p-2 w-full">
-                        <p class="text-xs mt-1">**</p>
+                        <label for="fileUpload" class="block text-sm font-bold mb-2">Magic: the Gathering Cards - upload
+                            your sorted and ready to ship MTG products *</label>
+                        <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv, .ods" class="border p-2 w-full">
+                        <p class="text-xs mt-1">Submissions must be one of the following formats:</p>
+                        <ul>
+                            <li><span>CSV | TSV | NUMBERS | XLSM | XLSX | XLSB | XLR | XML | ODS</span></li>
+                        </ul>
                     </div>
                     <div class="mb-6">
-                        <label for="fileUploadPk" class="block text-sm font-bold mb-2">Pokémon Cards - csv upload of
-                            your
+                        <label for="fileUploadPk" class="block text-sm font-bold mb-2">Pokémon Cards - upload your
                             sorted and ready to ship Pokémon products *</label>
-                        <input type="file" id="fileUploadPk" class="border p-2 w-full">
+                        <input type="file" id="fileUploadPk" accept=".xlsx, .xls, .csv, .ods" class="border p-2 w-full">
                     </div>
                     <div class="text-center">
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
+                        <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-4 py-2 rounded w-full"
+                            disabled>Submit</button>
                     </div>
                 </form>
+                <div id="message"></div>
             </div>
         </div>
         <footer class="footer" style="position: sticky; top: 100vh; padding-left: 1%;">
@@ -201,6 +204,7 @@
 
 
     </div>
+    <script type="text/javascript" src="/static/js/websocket.js"></script>
     <script type="text/javascript" src="/static/js/navbar.js"></script>
     <script type="text/javascript" src="/static/js/upload.js"></script>
 </body>
