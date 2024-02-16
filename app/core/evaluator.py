@@ -2,27 +2,27 @@ import json
 import pandas as pd
 import numpy as np
 from utils.logger import setup_logger
-from data_loader import DataLoader
+from models.submission_class import Submission
+from core.data_loader import DataLoader
 from utils.config_manager import ConfigManager
 from utils.masks import is_valid_tcgplayer_id, is_positive_integer
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict
+from typing import Callable, Dict
 
 logger = setup_logger()
 
 
 @dataclass
 class Evaluator:
+    submission: Submission
     config_manager: ConfigManager = field(init=True)
     data_loader: DataLoader = field(init=False)
     eval_frame: pd.DataFrame = field(default_factory=pd.DataFrame)
     source_timestamps: Dict = field(default_factory=dict)
-    clean_rules: Dict[str, Callable[[Any], bool]] = field(
-        default_factory=lambda: {
-            "TCGplayer Id": is_valid_tcgplayer_id,
-            "Add to Quantity": is_positive_integer,
-        }
-    )
+    clean_rules = {
+        "TCGplayer Id": is_valid_tcgplayer_id,
+        "Add to Quantity": is_positive_integer,
+    }
     _acv_threshold: float = 0.0
     _match_rate: float = 0.0
     _total_value: float = 0.0
@@ -34,13 +34,13 @@ class Evaluator:
     def __post_init__(self):
         logger.info("Initializing Evaluator")
         try:
-            self.data_loader = DataLoader(self.config_manager)
-            self._acv_threshold = self.data_loader.get("Threshold", "HIGHER")
+            self.data_loader = DataLoader(self.config_manager, self.submission)
+            self._acv_threshold = self.data_loader.get("Threshold", "UPPER")
             self.load_and_prep_frames()
         except Exception as e:
             logger.error(f"Could not initialize evaluator: {e}")
 
-    def load_and_prep_frames(self):
+    def load_and_prep_frames(self, store_name):
         try:
             logger.info("Loading and preparing frames")
             data_frames = self.data_loader.load_required_data()
@@ -298,38 +298,39 @@ class Evaluator:
     @staticmethod
     def _clean_data(
         df: pd.DataFrame,
-        clean_rules: Dict[str, Callable[[Any], bool]],
+        clean_rules: Dict[str, Callable[[pd.Series], pd.Series]],
         invalid_file_path: str = None,
     ) -> pd.DataFrame:
         """
-        Cleans a DataFrame based on specified rules for each column, saves invalid rows to CSV file
+        Clean the data in the DataFrame based on the provided clean rules.
 
         Args:
-            df: DataFrame to be cleaned.
-            clean_rules: Dict with column names as keys and cleaning functions for values.
-            returns True for valid data, False for invalid.
-            invalid_file_path: where to save invalid rows.
+            df (pd.DataFrame): The DataFrame to be cleaned.
+            clean_rules (Dict[str, Callable[[pd.Series], pd.Series]]): A dictionary of column names and corresponding
+                cleaning functions.
+            invalid_file_path (str, optional): The file path to save the invalid rows as a CSV file. Defaults to None.
 
         Returns:
-            cleaned DataFrame
+            pd.DataFrame: The cleaned DataFrame.
+
         """
-        invalid_rows = []
+        invalid_rows = pd.DataFrame()
         for column, clean_func in clean_rules.items():
             if column in df.columns:
-                # Identify valid rows
-                valid_mask = df[column].apply(clean_func)
-                # Accumulate invalid rows with invalidity reason
-                invalid_rows.extend(
-                    df.loc[~valid_mask]
-                    .assign(invalid_reason=f"invalid {column}")
-                    .to_dict("records")
+                valid_mask = clean_func(df[column])
+                # Accumulate invalid rows for potential logging or inspection
+                invalid_rows = pd.concat(
+                    [
+                        invalid_rows,
+                        df[~valid_mask].assign(invalid_reason=f"invalid {column}"),
+                    ]
                 )
-                # Keep only valid rows in the dataframe
+                # Keep only valid rows in the DataFrame
                 df = df[valid_mask]
 
-        # Save invalid rows to CSV file
-        if invalid_rows and invalid_file_path:
-            pd.DataFrame(invalid_rows).to_csv(invalid_file_path, index=False)
+        # Optionally save invalid rows to a CSV file for review
+        if not invalid_rows.empty and invalid_file_path:
+            invalid_rows.to_csv(invalid_file_path, index=False)
             logger.info(f"Invalid rows saved to {invalid_file_path}")
 
         return df
