@@ -6,7 +6,7 @@
 - **TCGplayer Set List Order Export**
 - **And your submission CSV** - ***QUANTITIES REQUIRED IN 'Add to Quantity'***
 
-stand-alone-evaluator.py
+## stand-alone-evaluator.py
 
 **1. Script Functionality**
 
