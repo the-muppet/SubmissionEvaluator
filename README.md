@@ -1,4 +1,12 @@
-This script is designed to evaluate TCGplayer SYP submissions.
+(Note that you may need to adjust some headers in the source files {looking at you, Set Name})
+
+**Needed Source Files**
+- **TCGplayer Full Catalog Export**
+- **TCGplayer SYP Pull Sheet Export**
+- **TCGplayer Set List Order Export**
+- **And your submission CSV** - ***QUANTITIES REQUIRED IN 'Add to Quantity'***
+
+stand-alone-evaluator.py
 
 **1. Script Functionality**
 
